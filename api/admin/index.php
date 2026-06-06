@@ -338,8 +338,8 @@ foreach ($social as $s) $socialMap[$s['platform']] = $s['url'];
             </div>
           </div>
 
-          <div class="glass rounded-xl p-6 space-y-5">
-            <h2 class="text-sm font-semibold text-yellow-600 uppercase tracking-wider">OpenAI (optional — for future use)</h2>
+          <div class="glass rounded-xl p-6 space-y-5 border border-yellow-600/40">
+            <h2 class="text-sm font-semibold text-yellow-400 uppercase tracking-wider">⭐ OpenAI — Primary Chatbot Provider (gpt-4o-mini)</h2>
             <div>
               <label class="block text-xs text-gray-400 mb-1.5 uppercase tracking-wider">OpenAI API Key</label>
               <div class="flex gap-2">

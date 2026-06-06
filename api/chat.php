@@ -8,6 +8,15 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/security.php';
 require_once __DIR__ . '/../includes/helpers.php';
 
+// Quick key-status check (no auth required — only returns true/false, not the key)
+if (($_GET['status'] ?? '') === '1') {
+    $okKey = SiteData::getSetting('openai_api_key', '')
+          ?: SiteData::getSetting('anthropic_api_key', '')
+          ?: (getenv('OPENAI_API_KEY') ?: '');
+    $hasKey = !empty($okKey) && !str_starts_with(trim($okKey), 'YOUR_') && strlen(trim($okKey)) > 10;
+    jsonResponse(['ai_ready' => $hasKey]);
+}
+
 // Rate limiting
 $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
 if (!checkRateLimit('chat_' . $ip, 30, 60)) {
