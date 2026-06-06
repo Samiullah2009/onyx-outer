@@ -9,7 +9,7 @@ if (($_GET['key'] ?? '') !== $setupKey) {
     die('403 Forbidden. Provide correct setup key via ?key= parameter.');
 }
 
-require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/../config/database.php';
 
 $db  = Database::getInstance();
 $pdo = $db->getConnection();
@@ -18,7 +18,7 @@ $errors  = [];
 $success = [];
 
 // Read and execute install_pg.sql
-$sqlFile = __DIR__ . '/install_pg.sql';
+$sqlFile = __DIR__ . '/../install_pg.sql';
 if (!file_exists($sqlFile)) {
     die('install_pg.sql not found.');
 }

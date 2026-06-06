@@ -2,8 +2,8 @@
 // sitemap.php - Dynamic XML sitemap
 header('Content-Type: application/xml; charset=utf-8');
 
-require_once __DIR__ . '/config/database.php';
-require_once __DIR__ . '/includes/helpers.php';
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../includes/helpers.php';
 
 $products = SiteData::getProducts(['active_only' => true]);
 $categories = SiteData::getCategories();

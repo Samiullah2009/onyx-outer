@@ -5,9 +5,9 @@
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../includes/security.php';
-require_once __DIR__ . '/../includes/helpers.php';
+require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../includes/security.php';
+require_once __DIR__ . '/../../includes/helpers.php';
 
 startSecureSession();
 
