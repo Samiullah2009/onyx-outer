@@ -31,6 +31,7 @@ function stars(int $rating): string {
 <!doctype html>
 <html lang="en" class="h-full">
 <head>
+  <meta name="google-site-verification" content="3HXJI2aU4fI634Vwvovk8LiUVbG1Byr3pz6xkp4O-9I" />
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= e($settings['site_name'] ?? 'Onyx & Outer') ?> — Curated Luxury Beyond Ordinary</title>
