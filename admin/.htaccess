@@ -1,0 +1,3 @@
+# On Vercel this file is ignored, but kept for compatibility
+# if the project is ever moved to Apache hosting.
+Options -Indexes

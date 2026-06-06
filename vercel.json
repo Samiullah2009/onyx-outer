@@ -1,0 +1,32 @@
+{
+  "functions": {
+    "index.php":             { "runtime": "vercel-php@0.7.2" },
+    "setup.php":             { "runtime": "vercel-php@0.7.2" },
+    "sitemap.php":           { "runtime": "vercel-php@0.7.2" },
+    "api/data.php":          { "runtime": "vercel-php@0.7.2" },
+    "api/chat.php":          { "runtime": "vercel-php@0.7.2" },
+    "api/subscribe.php":     { "runtime": "vercel-php@0.7.2" },
+    "api/index.php":         { "runtime": "vercel-php@0.7.2" },
+    "admin/index.php":       { "runtime": "vercel-php@0.7.2" },
+    "admin/login.php":       { "runtime": "vercel-php@0.7.2" },
+    "admin/logout.php":      { "runtime": "vercel-php@0.7.2" },
+    "admin/ajax.php":        { "runtime": "vercel-php@0.7.2" },
+    "admin/subscribers.php": { "runtime": "vercel-php@0.7.2" },
+    "admin/index_block.php": { "runtime": "vercel-php@0.7.2" }
+  },
+  "routes": [
+    { "src": "/sitemap\\.xml", "dest": "/sitemap.php" },
+    { "src": "/setup\\.php(.*)", "dest": "/setup.php$1" },
+    { "src": "/api/data(.*)",    "dest": "/api/data.php$1" },
+    { "src": "/api/chat(.*)",    "dest": "/api/chat.php$1" },
+    { "src": "/api/subscribe(.*)", "dest": "/api/subscribe.php$1" },
+    { "src": "/api/(.*)\\.php(.*)", "dest": "/api/$1.php$2" },
+    { "src": "/admin/login(.*)",    "dest": "/admin/login.php$1" },
+    { "src": "/admin/logout(.*)",   "dest": "/admin/logout.php$1" },
+    { "src": "/admin/ajax(.*)",     "dest": "/admin/ajax.php$1" },
+    { "src": "/admin/subscribers(.*)", "dest": "/admin/subscribers.php$1" },
+    { "src": "/admin(.*)",          "dest": "/admin/index.php$1" },
+    { "src": "/assets/(.*)",        "dest": "/assets/$1" },
+    { "src": "/(.*)",               "dest": "/index.php" }
+  ]
+}

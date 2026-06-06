@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /config/
+Disallow: /includes/
+Disallow: /setup.php
+Disallow: /api/
+
+Sitemap: https://your-project.vercel.app/sitemap.xml

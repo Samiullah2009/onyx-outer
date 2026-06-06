@@ -1,0 +1,318 @@
+================================================================
+  ONYX & OUTER — VERCEL DEPLOYMENT GUIDE
+  PHP + PostgreSQL on Vercel (Serverless)
+================================================================
+
+TABLE OF CONTENTS
+-----------------
+1.  What Changed From the Original Build
+2.  Prerequisites
+3.  First-Time Setup (Automated)
+4.  Manual Deployment (Step-by-Step)
+5.  Environment Variables Reference
+6.  Database Setup
+7.  Admin Panel
+8.  Adding Your Anthropic API Key (AI Chatbot)
+9.  Updating the Site URL
+10. Re-Deploying After Code Changes
+11. Important Limitations on Vercel
+12. Troubleshooting
+13. Migrating to a Custom Domain
+
+================================================================
+1. WHAT CHANGED FROM THE ORIGINAL BUILD
+================================================================
+
+The original site was built for Apache + MySQL (InfinityFree hosting).
+This version has been adapted for Vercel serverless PHP:
+
+  MySQL → PostgreSQL (Vercel Neon Postgres)
+    - ON DUPLICATE KEY UPDATE → ON CONFLICT ... DO UPDATE
+    - ORDER BY RAND()         → ORDER BY RANDOM()
+    - AUTO_INCREMENT          → SERIAL
+    - INT/TINYINT(1)          → INTEGER/SMALLINT
+
+  Sessions → Database-backed (required on Vercel serverless)
+    - PHP file sessions don't persist across Vercel function instances
+    - All sessions stored in the `php_sessions` table
+
+  Rate limiting → Database-backed
+    - File-based /tmp rate limiting replaced with `rate_limit_cache` table
+
+  File uploads → Disabled (Vercel filesystem is read-only)
+    - Use "Add Image URL" in Admin Panel instead
+    - Paste Unsplash URLs, Cloudinary URLs, or any public CDN link
+
+================================================================
+2. PREREQUISITES
+================================================================
+
+You need:
+  - A Vercel account: https://vercel.com (free)
+  - A GitHub account: https://github.com (free)
+  - The php-site/ folder (already set up)
+  - Node.js installed: https://nodejs.org (for Vercel CLI, optional)
+
+================================================================
+3. FIRST-TIME SETUP (AUTOMATED — RECOMMENDED)
+================================================================
+
+If your site was automatically deployed by the agent, it has already:
+  ✓ Created a GitHub repository with all files
+  ✓ Created a Vercel project linked to that repository
+  ✓ Provisioned a Vercel Postgres (Neon) database
+  ✓ Set all required environment variables
+  ✓ Triggered the first deployment
+
+After deployment completes (~2 minutes):
+  1. Visit: https://your-project.vercel.app/setup.php?key=onyx_setup_2025_secret
+  2. This creates all database tables and inserts default data
+  3. Visit /admin/login.php and log in with:
+       Username: phantom
+       Password: ms28200938879
+  4. IMPORTANT: Change your password by updating ADMIN_PASSWORD_HASH env var
+
+================================================================
+4. MANUAL DEPLOYMENT (STEP-BY-STEP)
+================================================================
+
+STEP 1 — Push to GitHub
+  a. Create a new GitHub repository at https://github.com/new
+     Name: onyx-outer  (or any name you like)
+     Visibility: Private recommended
+  b. In terminal, inside the php-site/ folder:
+       git init
+       git add .
+       git commit -m "Initial deployment"
+       git branch -M main
+       git remote add origin https://github.com/YOUR_USERNAME/onyx-outer.git
+       git push -u origin main
+
+STEP 2 — Import to Vercel
+  a. Go to https://vercel.com/new
+  b. Click "Import Git Repository"
+  c. Select your onyx-outer repository
+  d. Framework Preset: "Other" (do NOT select PHP — vercel.json handles it)
+  e. Click "Deploy"
+  f. The first deploy will fail — that's okay, we need to add env vars first
+
+STEP 3 — Create Vercel Postgres Database
+  a. In your Vercel project dashboard, go to "Storage" tab
+  b. Click "Create Database"
+  c. Choose "Neon Serverless Postgres"
+  d. Name it: onyx-outer-db
+  e. Region: Choose closest to your users
+  f. Click "Create"
+  g. Vercel automatically adds POSTGRES_URL and PGHOST etc. to your project
+
+STEP 4 — Add Environment Variables
+  In Vercel → Project → Settings → Environment Variables, add:
+
+    SITE_URL          = https://your-project.vercel.app
+    ADMIN_USERNAME    = phantom
+    ADMIN_PASSWORD_HASH = $2y$12$IpBCqL6I820Om/m7o/d.ce5LgSDdwQQc3l6QYxfVsuvHQ1Is6HWH2
+    SETUP_KEY         = onyx_setup_2025_secret
+
+  (The Postgres variables are added automatically by Vercel Storage)
+
+STEP 5 — Redeploy
+  a. Go to Deployments tab → click the three dots on latest → Redeploy
+
+STEP 6 — Run Database Setup
+  a. Visit: https://your-project.vercel.app/setup.php?key=onyx_setup_2025_secret
+  b. You should see "Database setup complete!"
+  c. All tables and default data are now installed
+
+STEP 7 — Log In
+  a. Visit: https://your-project.vercel.app/admin/login.php
+  b. Username: phantom
+  c. Password: ms28200938879
+
+================================================================
+5. ENVIRONMENT VARIABLES REFERENCE
+================================================================
+
+Variable               | Required | Description
+-----------------------|----------|------------------------------------------
+POSTGRES_URL           | YES      | Auto-set by Vercel Storage (Neon)
+PGHOST                 | YES      | Auto-set by Vercel Storage
+PGPORT                 | YES      | Auto-set by Vercel Storage
+PGDATABASE             | YES      | Auto-set by Vercel Storage
+PGUSER                 | YES      | Auto-set by Vercel Storage
+PGPASSWORD             | YES      | Auto-set by Vercel Storage
+SITE_URL               | YES      | Your Vercel domain (no trailing slash)
+ADMIN_USERNAME         | YES      | Admin login username (default: phantom)
+ADMIN_PASSWORD_HASH    | YES      | bcrypt hash of admin password
+SETUP_KEY              | YES      | Secret key for /setup.php endpoint
+ANTHROPIC_API_KEY      | NO       | Enables AI chatbot (set in Admin → API Keys)
+
+To generate a new ADMIN_PASSWORD_HASH:
+  php -r "echo password_hash('YOUR_NEW_PASSWORD', PASSWORD_BCRYPT, ['cost'=>12]);"
+
+================================================================
+6. DATABASE SETUP
+================================================================
+
+The database setup runs via /setup.php. It is idempotent — safe to
+run multiple times. Tables created:
+
+  php_sessions        — Database-backed PHP sessions (Vercel compatible)
+  rate_limit_cache    — Rate limiting (Vercel compatible)
+  categories          — Product categories
+  products            — Products with affiliate links
+  product_images      — Product images (URLs)
+  reviews             — Customer testimonials
+  site_settings       — All site text/content
+  social_links        — Social media URLs
+  chat_context        — AI chatbot context cache
+  admin_sessions      — Extra security layer
+  trending_log        — Trending rotation history
+  subscribers         — Newsletter subscribers
+
+================================================================
+7. ADMIN PANEL
+================================================================
+
+URL: /admin/login.php
+Default credentials:
+  Username: phantom
+  Password: ms28200938879
+
+Admin tabs:
+  Dashboard       — Site stats overview
+  Products        — Add/edit/delete products
+  Categories      — Manage product categories
+  Reviews         — Customer testimonials
+  Site Settings   — Hero text, stats, journal, newsletter content
+  Social Links    — Instagram, Twitter, Facebook URLs
+  API Keys        — Anthropic API key for AI chatbot
+
+Adding product images on Vercel:
+  → Open a product in admin → Images tab
+  → Use "Add Image URL" (NOT file upload)
+  → Paste any public image URL:
+      - Unsplash: https://images.unsplash.com/photo-ID?w=600&h=600&fit=crop
+      - Your own CDN
+      - Cloudinary, imgbb, etc.
+
+================================================================
+8. ADDING YOUR ANTHROPIC API KEY (AI CHATBOT)
+================================================================
+
+  1. Get your key at: https://console.anthropic.com/keys
+  2. Go to Admin Panel → API Keys tab
+  3. Paste your key into the Anthropic field
+  4. Click Save
+  5. The AI chatbot is now fully active
+
+  Alternatively, set ANTHROPIC_API_KEY as an env var in Vercel.
+
+================================================================
+9. UPDATING THE SITE URL
+================================================================
+
+After adding a custom domain in Vercel:
+  1. Go to Vercel → Project → Settings → Environment Variables
+  2. Update SITE_URL to your custom domain:
+       SITE_URL = https://www.yourdomain.com
+  3. Redeploy the project
+
+Update robots.txt:
+  Edit php-site/robots.txt and change the Sitemap URL,
+  then push to GitHub — Vercel auto-deploys from GitHub.
+
+================================================================
+10. RE-DEPLOYING AFTER CODE CHANGES
+================================================================
+
+Vercel auto-deploys whenever you push to the main branch:
+
+  # Make your changes to files in php-site/
+  cd php-site
+  git add .
+  git commit -m "Describe your change"
+  git push origin main
+  # Vercel automatically builds and deploys in ~1 minute
+
+You can also trigger manual redeploys from the Vercel dashboard.
+
+================================================================
+11. IMPORTANT LIMITATIONS ON VERCEL
+================================================================
+
+FILE UPLOADS
+  The Vercel filesystem is read-only (except /tmp which is temporary).
+  Uploaded files in /tmp are LOST after the serverless function finishes.
+
+  → Solution: Always use "Add Image URL" in the Admin Panel.
+  → Use Cloudinary (free tier) for persistent image hosting:
+       https://cloudinary.com — upload images there, paste URLs here.
+  → Or use any public image CDN or Unsplash.
+
+SESSION PERSISTENCE
+  Vercel serverless functions are stateless. Sessions are now stored
+  in the PostgreSQL database so they persist correctly.
+
+COLD STARTS
+  First request after inactivity may be ~1-2 seconds slower.
+  This is normal for serverless PHP.
+
+EXECUTION TIME
+  Vercel limits serverless function execution to 10 seconds (Hobby plan).
+  The AI chatbot endpoint may be slow for long conversations.
+  Upgrade to Vercel Pro for 60-second limit.
+
+================================================================
+12. TROUBLESHOOTING
+================================================================
+
+PROBLEM: "Database connection failed"
+  → Check that Vercel Postgres is linked to your project
+  → Verify POSTGRES_URL env var is set
+  → Redeploy after adding env vars
+
+PROBLEM: "403 Forbidden" on setup.php
+  → Add ?key=onyx_setup_2025_secret to the URL
+  → Or check SETUP_KEY env var matches
+
+PROBLEM: Admin login not working
+  → Clear cookies and try again
+  → Check ADMIN_USERNAME and ADMIN_PASSWORD_HASH env vars
+  → Default password for the pre-set hash: ms28200938879
+
+PROBLEM: Session keeps logging out
+  → Check php_sessions table exists (run setup.php again)
+  → Verify POSTGRES_URL is correct
+
+PROBLEM: Product images not showing
+  → Make sure image URLs are publicly accessible
+  → Use full https:// URLs (not relative paths)
+
+PROBLEM: AI chatbot not responding
+  → Add your Anthropic API key in Admin → API Keys
+  → Check it starts with "sk-ant-"
+
+PROBLEM: Vercel deployment failing
+  → Check the Build Logs in Vercel dashboard
+  → Ensure vercel.json is in the repository root
+  → Verify PHP function paths in vercel.json match actual file paths
+
+================================================================
+13. MIGRATING TO A CUSTOM DOMAIN
+================================================================
+
+  1. Buy a domain (Namecheap, GoDaddy, Cloudflare, etc.)
+  2. In Vercel: Project → Settings → Domains
+  3. Click "Add" and enter your domain
+  4. Update your domain's DNS:
+       Type: CNAME
+       Name: www (or @)
+       Value: cname.vercel-dns.com
+  5. Wait 5-60 minutes for DNS propagation
+  6. Update SITE_URL env var to your custom domain
+  7. Redeploy
+
+================================================================
+  Admin: /admin/login.php | Username: phantom | Password: ms28200938879
+  Setup: /setup.php?key=onyx_setup_2025_secret
+================================================================
