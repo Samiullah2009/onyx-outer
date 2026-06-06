@@ -1,5 +1,5 @@
 <?php
-// api/chat.php — AI Chatbot endpoint
+// api/chat.php — AI Chatbot endpoint (OpenAI primary, Anthropic fallback)
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
@@ -21,7 +21,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 // Parse JSON body
 $body = json_decode(file_get_contents('php://input'), true);
-
 if (!$body || empty($body['message'])) {
     jsonResponse(['error' => 'Invalid request'], 400);
 }
@@ -34,80 +33,141 @@ if (strlen($message) > 500) {
 }
 
 // -------------------------------------------------------
-// Resolve the Anthropic API key:
-//   1. Check the database (set via Admin → API Keys)
-//   2. Fall back to the constant in config/database.php
+// Resolve API keys — OpenAI is primary, Anthropic fallback
+// 1. DB (set via Admin → API Keys) takes priority
+// 2. Falls back to env vars defined in config/database.php
 // -------------------------------------------------------
-$apiKey = SiteData::getSetting('anthropic_api_key', '');
-if (empty($apiKey)) {
-    $apiKey = defined('ANTHROPIC_API_KEY') ? ANTHROPIC_API_KEY : '';
+$openaiKey    = SiteData::getSetting('openai_api_key', '');
+$anthropicKey = SiteData::getSetting('anthropic_api_key', '');
+
+if (empty($openaiKey)) {
+    $openaiKey = defined('OPENAI_API_KEY') ? OPENAI_API_KEY : (getenv('OPENAI_API_KEY') ?: '');
+}
+if (empty($anthropicKey)) {
+    $anthropicKey = defined('ANTHROPIC_API_KEY') ? ANTHROPIC_API_KEY : '';
 }
 
-if (empty($apiKey) || $apiKey === 'YOUR_ANTHROPIC_API_KEY_HERE') {
-    // No key configured — return a polite local fallback
+$useOpenAI    = !empty($openaiKey)    && !str_starts_with($openaiKey,    'YOUR_');
+$useAnthropic = !empty($anthropicKey) && !str_starts_with($anthropicKey, 'YOUR_');
+
+if (!$useOpenAI && !$useAnthropic) {
     jsonResponse(['reply' => getLocalFallback($message)]);
 }
 
-// Build messages array for Anthropic API
-$messages = [];
-
-// Include recent history (max 10 turns)
+// Build conversation history (max 10 turns)
 $history = array_slice($history, -10);
-foreach ($history as $h) {
-    if (!empty($h['role']) && !empty($h['content'])) {
-        $messages[] = [
-            'role'    => in_array($h['role'], ['user', 'assistant']) ? $h['role'] : 'user',
-            'content' => substr(sanitize($h['content']), 0, 500)
-        ];
+
+// Get site context / system prompt
+$systemPrompt = SiteData::getChatContext();
+
+// -------------------------------------------------------
+// OpenAI (gpt-4o-mini) — primary
+// -------------------------------------------------------
+if ($useOpenAI) {
+    $messages = [['role' => 'system', 'content' => $systemPrompt]];
+    foreach ($history as $h) {
+        if (!empty($h['role']) && !empty($h['content'])) {
+            $messages[] = [
+                'role'    => in_array($h['role'], ['user', 'assistant']) ? $h['role'] : 'user',
+                'content' => substr(sanitize($h['content']), 0, 500)
+            ];
+        }
+    }
+    $messages[] = ['role' => 'user', 'content' => $message];
+
+    $requestBody = json_encode([
+        'model'       => 'gpt-4o-mini',
+        'max_tokens'  => 300,
+        'temperature' => 0.7,
+        'messages'    => $messages
+    ]);
+
+    $ch = curl_init('https://api.openai.com/v1/chat/completions');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $requestBody,
+        CURLOPT_TIMEOUT        => 25,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $openaiKey
+        ]
+    ]);
+
+    $response  = curl_exec($ch);
+    $httpCode  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+
+    if (!$curlError && $httpCode === 200) {
+        $data = json_decode($response, true);
+        if (!empty($data['choices'][0]['message']['content'])) {
+            jsonResponse(['reply' => $data['choices'][0]['message']['content']]);
+        }
+    }
+
+    // Log error and fall through to Anthropic or local fallback
+    error_log("OpenAI API error: HTTP $httpCode | cURL: $curlError | Response: " . substr($response, 0, 300));
+
+    if (!$useAnthropic) {
+        jsonResponse(['reply' => getLocalFallback($message)]);
     }
 }
 
-// Add current message
-$messages[] = ['role' => 'user', 'content' => $message];
+// -------------------------------------------------------
+// Anthropic (claude-haiku) — fallback
+// -------------------------------------------------------
+if ($useAnthropic) {
+    $messages = [];
+    foreach ($history as $h) {
+        if (!empty($h['role']) && !empty($h['content'])) {
+            $messages[] = [
+                'role'    => in_array($h['role'], ['user', 'assistant']) ? $h['role'] : 'user',
+                'content' => substr(sanitize($h['content']), 0, 500)
+            ];
+        }
+    }
+    $messages[] = ['role' => 'user', 'content' => $message];
 
-// Get site context
-$systemPrompt = SiteData::getChatContext();
+    $requestBody = json_encode([
+        'model'      => 'claude-haiku-4-5-20251001',
+        'max_tokens' => 300,
+        'system'     => $systemPrompt,
+        'messages'   => $messages
+    ]);
 
-// Call Anthropic API
-$requestBody = json_encode([
-    'model'      => 'claude-haiku-4-5-20251001',
-    'max_tokens' => 300,
-    'system'     => $systemPrompt,
-    'messages'   => $messages
-]);
+    $ch = curl_init('https://api.anthropic.com/v1/messages');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $requestBody,
+        CURLOPT_TIMEOUT        => 20,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_HTTPHEADER     => [
+            'Content-Type: application/json',
+            'x-api-key: ' . $anthropicKey,
+            'anthropic-version: 2023-06-01'
+        ]
+    ]);
 
-$ch = curl_init('https://api.anthropic.com/v1/messages');
-curl_setopt_array($ch, [
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_POST           => true,
-    CURLOPT_POSTFIELDS     => $requestBody,
-    CURLOPT_TIMEOUT        => 20,
-    CURLOPT_SSL_VERIFYPEER => true,
-    CURLOPT_HTTPHEADER     => [
-        'Content-Type: application/json',
-        'x-api-key: ' . $apiKey,
-        'anthropic-version: 2023-06-01'
-    ]
-]);
+    $response  = curl_exec($ch);
+    $httpCode  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
 
-$response  = curl_exec($ch);
-$httpCode  = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-$curlError = curl_error($ch);
-curl_close($ch);
+    if (!$curlError && $httpCode === 200) {
+        $data = json_decode($response, true);
+        if (!empty($data['content'][0]['text'])) {
+            jsonResponse(['reply' => $data['content'][0]['text']]);
+        }
+    }
 
-if ($curlError || $httpCode !== 200) {
-    error_log("Anthropic API error: HTTP $httpCode | cURL: $curlError | Response: $response");
-    jsonResponse(['reply' => getLocalFallback($message)]);
+    error_log("Anthropic API error: HTTP $httpCode | cURL: $curlError | Response: " . substr($response, 0, 300));
 }
 
-$data = json_decode($response, true);
-
-if (isset($data['content'][0]['text'])) {
-    jsonResponse(['reply' => $data['content'][0]['text']]);
-} else {
-    error_log("Unexpected Anthropic response: " . json_encode($data));
-    jsonResponse(['reply' => getLocalFallback($message)]);
-}
+// Final fallback — local responses
+jsonResponse(['reply' => getLocalFallback($message)]);
 
 // -------------------------------------------------------
 // Local fallback responses (used when no API key is set)

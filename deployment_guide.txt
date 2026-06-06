@@ -3,6 +3,14 @@
   PHP + PostgreSQL on Vercel (Serverless)
 ================================================================
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  STATUS: ✅ LIVE — https://onyx-outer.vercel.app
+  GitHub:      https://github.com/Samiullah2009/onyx-outer
+  Admin:       https://onyx-outer.vercel.app/admin/login
+  Database:    Neon Postgres (shadow-vale, region iad1) — ✅ READY
+  DB Tables:   24 created via /setup.php ✅
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 TABLE OF CONTENTS
 -----------------
 1.  What Changed From the Original Build
