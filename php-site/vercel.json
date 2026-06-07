@@ -1,0 +1,31 @@
+{
+  "functions": {
+    "api/*.php":       { "runtime": "vercel-php@0.7.2" },
+    "api/**/*.php":    { "runtime": "vercel-php@0.7.2" }
+  },
+  "rewrites": [
+    { "source": "/sitemap.xml",            "destination": "/api/sitemap.php"          },
+    { "source": "/setup.php",              "destination": "/api/setup.php"            },
+    { "source": "/migrate.php",            "destination": "/api/migrate.php"          },
+    { "source": "/api/data",               "destination": "/api/data.php"             },
+    { "source": "/api/data/(.*)",          "destination": "/api/data.php"             },
+    { "source": "/api/chat",               "destination": "/api/chat.php"             },
+    { "source": "/api/chat/(.*)",          "destination": "/api/chat.php"             },
+    { "source": "/api/subscribe",          "destination": "/api/subscribe.php"        },
+    { "source": "/api/subscribe/(.*)",     "destination": "/api/subscribe.php"        },
+    { "source": "/admin/login.php",        "destination": "/api/admin/login.php"      },
+    { "source": "/admin/login",            "destination": "/api/admin/login.php"      },
+    { "source": "/admin/logout.php",       "destination": "/api/admin/logout.php"     },
+    { "source": "/admin/logout",           "destination": "/api/admin/logout.php"     },
+    { "source": "/admin/ajax.php",         "destination": "/api/admin/ajax.php"       },
+    { "source": "/admin/ajax",             "destination": "/api/admin/ajax.php"       },
+    { "source": "/admin/subscribers.php",  "destination": "/api/admin/subscribers.php"},
+    { "source": "/admin/subscribers",      "destination": "/api/admin/subscribers.php"},
+    { "source": "/admin",                  "destination": "/api/admin/index.php"      },
+    { "source": "/admin/(.*)",             "destination": "/api/admin/index.php"      },
+    { "source": "/journal",               "destination": "/api/journal.php"          },
+    { "source": "/journal/(.*)",           "destination": "/api/journal-post.php"     },
+    { "source": "/page/(.*)",              "destination": "/api/page.php"             },
+    { "source": "/(.*)",                   "destination": "/api/index.php"            }
+  ]
+}
